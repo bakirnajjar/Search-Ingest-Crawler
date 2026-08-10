@@ -76,7 +76,7 @@
         "mappings": [
           { "name": "chunk", "source": "/document/pages/*" },
           { "name": "vector", "source": "/document/pages/*/vector" },
-          { "name": "title", "source": "/document/metadata_storage_name" },
+          { "name": "title", "source": "/document/title" },
           { "name": "sourceUrl", "source": "/document/sourceurl" },
           { "name": "language", "source": "/document/language" },
           { "name": "section", "source": "/document/section" },

@@ -81,3 +81,6 @@ Invoke-RestMethod -Uri "https://<search-service>.search.windows.net/indexers/ix-
 - **Scheduled daily**: every indexer carries a `schedule` (interval `P1D`, 04:00 UTC)
   and picks up new/changed blobs incrementally. Trigger an out-of-band refresh any
   time with `POST /indexers/<name>/run`.
+- **Deletion detection**: when the storage account has blob soft delete enabled, the
+  data sources use `NativeBlobSoftDeleteDeletionDetectionPolicy` (added automatically by
+  `deploy.ps1`) so blobs removed from storage drop out of the index on the next run.

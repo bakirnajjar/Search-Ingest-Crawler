@@ -3,5 +3,5 @@
   "description": "Blob container source (Managed Identity connection).",
   "type": "azureblob",
   "credentials": { "connectionString": "ResourceId=__STORAGE_RESID__;" },
-  "container": { "name": "__CONTAINER__" }
+  "container": { "name": "__CONTAINER__" }__DELETION_POLICY__
 }

@@ -75,43 +75,43 @@ az storage blob list --account-name YOURACCOUNT --container-name pages -o table
 > Local tip: the pinned `Twisted==24.3.0` and `playwright==1.47.0` wheels require
 > Python 3.10–3.13 (use `py -3.12`). Python 3.14 has no prebuilt wheels yet.
 
-## Deploy to Azure Container Apps (scheduled job)
+## Deploy with the Azure Developer CLI (azd)
+
+A single `azd up` provisions a **fresh** environment (resource group, Container Registry,
+Container Apps environment + scheduled **Job**, Storage + containers, Azure AI Search, and a
+Foundry `text-embedding-3-large` deployment), builds the crawler image, points the Job at
+it, and configures the AI Search index/skillset/indexers — all with Managed Identity.
 
 ```powershell
-az login
-az account set --subscription "<subscription-id>"
-az extension add --name containerapp   # if not already installed
-
-./infra/deploy.ps1 `
-  -StorageAccount "<existing-storage-account>" `
-  -SitemapUrls "https://www.example.com/robots.txt" `
-  -ResourceGroup "rg-search-ingest-crawler" -Location "uaenorth"
+azd auth login
+az login          # the postprovision hook uses the az CLI (image build + Search setup)
+azd env new search-ingest-crawler
+azd env set CRAWL_SITEMAP_URLS "https://www.example.com/robots.txt"
+# Optional: azd env set CRAWL_ALLOWED_DOMAINS "example.com,www.example.com"
+azd up    # choose subscription + region when prompted
 ```
 
-Every parameter above can instead be set in [`.env`](.env.example) (see the
-_Deployment_ section). With `.env` populated, run `./infra/deploy.ps1` with no
-arguments; any CLI argument you pass overrides the matching `.env` value.
-
-The script builds the image in ACR, creates a user-assigned Managed Identity,
-grants it **Storage Blob Data Contributor** + **AcrPull**, applies a storage
-**lifecycle policy** (snapshots expire after `-SnapshotRetentionDays`, default 30),
-and creates a Container Apps Job scheduled daily at `0 2 * * *` (02:00 UTC, 12h
-replica timeout).
-
-Trigger an immediate run:
+The crawler Job runs on a daily schedule (`0 2 * * *`, 12h replica timeout). Trigger the
+first crawl immediately:
 
 ```powershell
-az containerapp job start --name search-ingest-crawler-job --resource-group rg-search-ingest-crawler
-az containerapp job execution list --name search-ingest-crawler-job --resource-group rg-search-ingest-crawler -o table
+$job = azd env get-value CRAWLER_JOB_NAME
+$rg  = azd env get-value AZURE_RESOURCE_GROUP
+az containerapp job start --name $job --resource-group $rg
+az containerapp job execution list --name $job --resource-group $rg -o table
 ```
 
-## Index into Azure AI Search (optional Stage 2)
+Tear the environment down with `azd down`. Infrastructure is Bicep under [`infra/`](infra/);
+the `postprovision` hook ([infra/hooks/postprovision.ps1](infra/hooks/postprovision.ps1))
+builds the image and runs the Stage 2 indexer setup.
+
+## Index into Azure AI Search (Stage 2)
 
 The [`indexer/`](indexer/) folder turns the four Blob containers into a single
 **hybrid + semantic + vector** Azure AI Search index — OCR for images/PDFs/snapshots,
 integrated vectorization via Azure OpenAI, and one search document per content chunk.
-It reuses existing Search + Foundry + Storage resources and authenticates entirely
-via Managed Identity. See [indexer/README.md](indexer/README.md).
+`azd up` runs this automatically via the `postprovision` hook; the folder also supports
+standalone use against existing resources. See [indexer/README.md](indexer/README.md).
 
 ## Configuration reference
 
@@ -121,11 +121,10 @@ All settings are environment variables (see [`.env.example`](.env.example)):
 `CAPTURE_SNAPSHOTS`, `SNAPSHOT_PDF`, `INCREMENTAL`, `HARVEST_RENDERED_IMAGES`,
 `CRAWLER_CONCURRENCY`, `CRAWLER_DOWNLOAD_DELAY`, `LOG_LEVEL`.
 
-Deployment parameters for the ACA Job (`infra/deploy.ps1`) and the AI Search
-indexer (`indexer/deploy.ps1`) can also live in `.env` — `RESOURCE_GROUP`,
-`LOCATION`, `STORAGE_ACCOUNT`, `ACR_NAME`, `ACA_*`, `CRON`, `REPLICA_*`,
-`SNAPSHOT_RETENTION_DAYS`, `SEARCH_SERVICE`, `FOUNDRY_ACCOUNT`, `EMBED_*`,
-`INDEX_NAME`, `SKILLSET_NAME`, `SEARCH_API_VERSION`.
+Deployment parameters also live in `.env` for the **standalone scripts** — the AI Search
+indexer ([indexer/deploy.ps1](indexer/deploy.ps1)): `RESOURCE_GROUP`, `SEARCH_SERVICE`,
+`STORAGE_ACCOUNT`, `FOUNDRY_ACCOUNT`, `EMBED_*`, `INDEX_NAME`, `SKILLSET_NAME`,
+`SEARCH_API_VERSION`. The `azd` path instead reads these from Bicep parameters / `azd env`.
 
 ## License
 

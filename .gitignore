@@ -5,3 +5,7 @@ __pycache__/
 .env
 .scrapy/
 *.log
+
+# azd environment state (may contain secrets); keep the deployment plan tracked
+.azure/*
+!.azure/deployment-plan.md

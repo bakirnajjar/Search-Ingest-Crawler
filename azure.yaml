@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: search-ingest-crawler
+metadata:
+  template: search-ingest-crawler@1.0.0
+
+# This project deploys a scheduled Container Apps *Job* (not a web service) plus an
+# Azure AI Search indexer. Neither is a native azd service host, so all resources are
+# provisioned by Bicep and the postprovision hook builds the image, points the Job at it,
+# and configures the Search index/skillset/indexers.
+hooks:
+  postprovision:
+    windows:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1
+      continueOnError: false
+      interactive: false
+    posix:
+      shell: pwsh
+      run: ./infra/hooks/postprovision.ps1
+      continueOnError: false
+      interactive: false

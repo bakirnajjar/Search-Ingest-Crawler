@@ -27,6 +27,12 @@ def _ascii(value: str) -> str:
     return quote(str(value or ""), safe="")
 
 
+def _meta(value: str) -> str:
+    """Header-safe metadata value: collapse whitespace; keep printable ASCII, else percent-encode."""
+    s = " ".join(str(value or "").split())
+    return s if s.isascii() else quote(s, safe="")
+
+
 class BlobStoragePipeline:
     def __init__(self, settings):
         self.account_url = settings.get("STORAGE_ACCOUNT_URL", "")
@@ -73,6 +79,7 @@ class BlobStoragePipeline:
         chash = adapter["content_hash"]
         meta = {
             "sourceurl": _ascii(url),
+            "title": _meta(adapter.get("title")),
             "crawledat": _ascii(adapter["crawled_at"]),
             "language": _ascii(adapter.get("language", "unknown")),
             "section": _ascii(adapter.get("section", "unknown")),
@@ -128,6 +135,7 @@ class BlobStoragePipeline:
 
         meta = {
             "sourceurl": _ascii(url),
+            "title": _meta(name.split("/")[-1]),
             "sourcepage": _ascii(adapter.get("source_page", "")),
             "crawledat": _ascii(adapter["crawled_at"]),
             "language": _ascii(adapter.get("language", "unknown")),

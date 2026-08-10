@@ -84,6 +84,11 @@ $foundryId  = az cognitiveservices account show --name $Foundry --resource-group
 $foundryUrl = az cognitiveservices account show --name $Foundry --resource-group $ResourceGroup --query "properties.endpoint" -o tsv
 if (-not $storageId -or -not $foundryId) { throw "Storage or Foundry account not found in $ResourceGroup." }
 
+# Native blob soft-delete deletion detection only works when the account has soft delete enabled.
+$softDelete = az storage account blob-service-properties show --account-name $StorageAccount --resource-group $ResourceGroup --query "deleteRetentionPolicy.enabled" -o tsv 2>$null
+$deletionPolicy = if ($softDelete -eq 'true') { ',"dataDeletionDetectionPolicy":{"@odata.type":"#Microsoft.Azure.Search.NativeBlobSoftDeleteDeletionDetectionPolicy"}' } else { '' }
+Write-Host "==> Blob soft delete enabled: $softDelete (deletion detection $(if ($softDelete -eq 'true') { 'ON' } else { 'OFF' }))"
+
 Write-Host "==> Enabling system-assigned identity on '$SearchService'"
 az search service update --name $SearchService --resource-group $ResourceGroup --identity-type SystemAssigned --output none
 $principalId = az search service show --name $SearchService --resource-group $ResourceGroup --query "identity.principalId" -o tsv
@@ -134,6 +139,7 @@ foreach ($s in $sources) {
     "__DS_NAME__"      = $s.ds
     "__STORAGE_RESID__"= $storageId
     "__CONTAINER__"    = $s.container
+    "__DELETION_POLICY__" = $deletionPolicy
   })
   Write-Host "==> PUT indexer '$($s.ix)'"
   Invoke-Put "indexers/$($s.ix)" (Expand-Template "indexer.template.json" @{

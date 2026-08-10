@@ -10,3 +10,5 @@ __pycache__
 *.log
 README.md
 infra/
+indexer/
+.azure/

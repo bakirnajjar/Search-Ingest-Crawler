@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location": { "value": "${AZURE_LOCATION}" },
+    "crawlSitemapUrls": { "value": "${CRAWL_SITEMAP_URLS}" },
+    "crawlAllowedDomains": { "value": "${CRAWL_ALLOWED_DOMAINS}" },
+    "crawlAssetHosts": { "value": "${CRAWL_ASSET_HOSTS}" },
+    "embedModel": { "value": "${EMBED_MODEL=text-embedding-3-large}" },
+    "embedDeployment": { "value": "${EMBED_DEPLOYMENT=text-embedding-3-large}" },
+    "indexName": { "value": "${INDEX_NAME=content-index}" },
+    "skillsetName": { "value": "${SKILLSET_NAME=content-skillset}" },
+    "cron": { "value": "${CRON=0 2 * * *}" }
+  }
+}

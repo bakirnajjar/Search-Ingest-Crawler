@@ -67,6 +67,7 @@ $resp.value | ForEach-Object {
     score     = $_.'@search.score'
     language  = $_.language
     kind      = $_.kind
+    title     = if ($_.title) { [System.Uri]::UnescapeDataString($_.title) } else { '' }
     sourceUrl = [System.Uri]::UnescapeDataString($_.sourceUrl)
     snippet   = ($_.chunk -replace '\s+', ' ').Substring(0, [Math]::Min(160, $_.chunk.Length))
   }
