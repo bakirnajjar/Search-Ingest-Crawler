@@ -1,0 +1,19 @@
+{
+  "name": "__IX_NAME__",
+  "dataSourceName": "__DS_NAME__",
+  "skillsetName": "__SKILLSET__",
+  "targetIndexName": "__INDEX_NAME__",
+  "schedule": { "interval": "P1D", "startTime": "2026-01-01T04:00:00Z" },
+  "parameters": {
+    "maxFailedItems": -1,
+    "maxFailedItemsPerBatch": -1,
+    "configuration": {
+      "dataToExtract": "contentAndMetadata",
+      "parsingMode": "default",
+      "imageAction": "__IMAGE_ACTION__",
+      "indexedFileNameExtensions": "__EXTENSIONS__"
+    }
+  },
+  "fieldMappings": [],
+  "outputFieldMappings": []
+}

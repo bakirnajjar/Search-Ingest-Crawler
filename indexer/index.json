@@ -1,0 +1,47 @@
+{
+  "name": "__INDEX_NAME__",
+  "fields": [
+    { "name": "id", "type": "Edm.String", "key": true, "searchable": true, "filterable": true, "sortable": true, "facetable": false, "analyzer": "keyword" },
+    { "name": "parent_id", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": false, "facetable": false },
+    { "name": "chunk", "type": "Edm.String", "searchable": true, "filterable": false, "sortable": false, "facetable": false, "analyzer": "standard.lucene" },
+    { "name": "vector", "type": "Collection(Edm.Single)", "searchable": true, "retrievable": true, "dimensions": __DIMENSIONS__, "vectorSearchProfile": "vprofile" },
+    { "name": "title", "type": "Edm.String", "searchable": true, "filterable": false, "sortable": false, "facetable": false },
+    { "name": "sourceUrl", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": false, "facetable": false },
+    { "name": "language", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": false, "facetable": true },
+    { "name": "section", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": false, "facetable": true },
+    { "name": "kind", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": false, "facetable": true },
+    { "name": "crawledAt", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": true, "facetable": false },
+    { "name": "contentHash", "type": "Edm.String", "searchable": false, "filterable": true, "sortable": false, "facetable": false }
+  ],
+  "vectorSearch": {
+    "algorithms": [
+      { "name": "hnsw", "kind": "hnsw", "hnswParameters": { "m": 4, "efConstruction": 400, "efSearch": 500, "metric": "cosine" } }
+    ],
+    "vectorizers": [
+      {
+        "name": "aoai",
+        "kind": "azureOpenAI",
+        "azureOpenAIParameters": {
+          "resourceUri": "__FOUNDRY_ENDPOINT__",
+          "deploymentId": "__EMBED_DEPLOYMENT__",
+          "modelName": "__EMBED_MODEL__"
+        }
+      }
+    ],
+    "profiles": [
+      { "name": "vprofile", "algorithm": "hnsw", "vectorizer": "aoai" }
+    ]
+  },
+  "semantic": {
+    "configurations": [
+      {
+        "name": "semcfg",
+        "prioritizedFields": {
+          "titleField": { "fieldName": "title" },
+          "prioritizedContentFields": [ { "fieldName": "chunk" } ],
+          "prioritizedKeywordsFields": []
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "name": "__SKILLSET__",
+  "description": "OCR + merge + split + Azure OpenAI embeddings; projects one search doc per chunk.",
+  "skills": [
+    {
+      "@odata.type": "#Microsoft.Skills.Vision.OcrSkill",
+      "name": "ocr",
+      "description": "Reads printed/handwritten text from normalized images.",
+      "context": "/document/normalized_images/*",
+      "detectOrientation": true,
+      "inputs": [
+        { "name": "image", "source": "/document/normalized_images/*" }
+      ],
+      "outputs": [
+        { "name": "text", "targetName": "text" }
+      ]
+    },
+    {
+      "@odata.type": "#Microsoft.Skills.Text.MergeSkill",
+      "name": "merge",
+      "description": "Merges the blob's own text with OCR text from its images.",
+      "context": "/document",
+      "insertPreTag": " ",
+      "insertPostTag": " ",
+      "inputs": [
+        { "name": "text", "source": "/document/content" },
+        { "name": "itemsToInsert", "source": "/document/normalized_images/*/text" },
+        { "name": "offsets", "source": "/document/normalized_images/*/contentOffset" }
+      ],
+      "outputs": [
+        { "name": "mergedText", "targetName": "merged_content" }
+      ]
+    },
+    {
+      "@odata.type": "#Microsoft.Skills.Text.SplitSkill",
+      "name": "split",
+      "description": "Chunks long text into passages for embeddings.",
+      "context": "/document",
+      "textSplitMode": "pages",
+      "maximumPageLength": 2000,
+      "pageOverlapLength": 500,
+      "inputs": [
+        { "name": "text", "source": "/document/merged_content" }
+      ],
+      "outputs": [
+        { "name": "textItems", "targetName": "pages" }
+      ]
+    },
+    {
+      "@odata.type": "#Microsoft.Skills.Text.AzureOpenAIEmbeddingSkill",
+      "name": "embed",
+      "description": "Vectorizes each chunk via Azure OpenAI (Managed Identity).",
+      "context": "/document/pages/*",
+      "resourceUri": "__FOUNDRY_ENDPOINT__",
+      "deploymentId": "__EMBED_DEPLOYMENT__",
+      "modelName": "__EMBED_MODEL__",
+      "dimensions": __DIMENSIONS__,
+      "inputs": [
+        { "name": "text", "source": "/document/pages/*" }
+      ],
+      "outputs": [
+        { "name": "embedding", "targetName": "vector" }
+      ]
+    }
+  ],
+  "cognitiveServices": {
+    "@odata.type": "#Microsoft.Azure.Search.AIServicesByIdentity",
+    "subdomainUrl": "__FOUNDRY_ENDPOINT__"
+  },
+  "indexProjections": {
+    "selectors": [
+      {
+        "targetIndexName": "__INDEX_NAME__",
+        "parentKeyFieldName": "parent_id",
+        "sourceContext": "/document/pages/*",
+        "mappings": [
+          { "name": "chunk", "source": "/document/pages/*" },
+          { "name": "vector", "source": "/document/pages/*/vector" },
+          { "name": "title", "source": "/document/metadata_storage_name" },
+          { "name": "sourceUrl", "source": "/document/sourceurl" },
+          { "name": "language", "source": "/document/language" },
+          { "name": "section", "source": "/document/section" },
+          { "name": "kind", "source": "/document/kind" },
+          { "name": "crawledAt", "source": "/document/crawledat" },
+          { "name": "contentHash", "source": "/document/contenthash" }
+        ]
+      }
+    ],
+    "parameters": {
+      "projectionMode": "skipIndexingParentDocuments"
+    }
+  }
+}
