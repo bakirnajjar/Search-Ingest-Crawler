@@ -187,6 +187,13 @@ resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     hostingMode: 'default'
     semanticSearch: 'free'
     publicNetworkAccess: 'enabled'
+    // Allow both API keys (indexer admin key) and Entra RBAC (web app query identity).
+    disableLocalAuth: false
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http403'
+      }
+    }
   }
 }
 
