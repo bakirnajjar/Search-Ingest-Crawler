@@ -18,26 +18,60 @@
 #>
 
 param(
-  [string]$ResourceGroup   = "rg-search-ingest-crawler",
-  [string]$Location        = "uaenorth",
-  [Parameter(Mandatory = $true)]
-  [string]$StorageAccount,                        # existing storage account name
-  [Parameter(Mandatory = $true)]
-  [string]$SitemapUrls,                           # comma-separated robots.txt/sitemap URLs
-  [string]$AllowedDomains  = "",                  # comma-separated; default: derived from sitemaps
-  [string]$AssetHosts      = "",                  # comma-separated; default: allowed domains
-  [string]$Acr             = "searchingestcrawleracr", # must be globally unique, alphanumeric
-  [string]$Environment     = "search-ingest-crawler-env",
-  [string]$Identity        = "id-search-ingest-crawler",
-  [string]$JobName         = "search-ingest-crawler-job",
-  [string]$ImageTag        = "",                    # default: timestamp tag for reliable rollouts
-  [string]$Cron            = "0 2 * * *",          # daily at 02:00 UTC
-  [int]   $ReplicaTimeout  = 43200,                # 12h cap for a full crawl
-  [int]   $ReplicaRetry    = 1,
-  [int]   $SnapshotRetentionDays = 30              # lifecycle expiry for snapshots
+  [string]$ResourceGroup,          # RESOURCE_GROUP
+  [string]$Location,               # LOCATION
+  [string]$StorageAccount,         # STORAGE_ACCOUNT (existing storage account name)
+  [string]$SitemapUrls,            # CRAWL_SITEMAP_URLS (comma-separated robots.txt/sitemap URLs)
+  [string]$AllowedDomains,         # CRAWL_ALLOWED_DOMAINS
+  [string]$AssetHosts,             # CRAWL_ASSET_HOSTS
+  [string]$Acr,                    # ACR_NAME (globally unique, alphanumeric)
+  [string]$Environment,            # ACA_ENVIRONMENT
+  [string]$Identity,               # ACA_IDENTITY
+  [string]$JobName,                # ACA_JOB_NAME
+  [string]$ImageTag,               # IMAGE_TAG (blank = timestamp tag)
+  [string]$Cron,                   # CRON (daily at 02:00 UTC by default)
+  [int]   $ReplicaTimeout,         # REPLICA_TIMEOUT (12h cap for a full crawl)
+  [int]   $ReplicaRetry,           # REPLICA_RETRY
+  [int]   $SnapshotRetentionDays   # SNAPSHOT_RETENTION_DAYS
 )
 
 $ErrorActionPreference = "Stop"
+
+# Parameters may be supplied on the CLI or via the repo-root .env.
+# Precedence: explicit CLI arg > existing shell env var > .env value > built-in default.
+function Import-DotEnv([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  foreach ($line in Get-Content -LiteralPath $path) {
+    $t = $line.Trim()
+    if (-not $t -or $t.StartsWith("#")) { continue }
+    $i = $t.IndexOf("=")
+    if ($i -lt 1) { continue }
+    $k = $t.Substring(0, $i).Trim()
+    $v = $t.Substring($i + 1).Trim()
+    if (-not [Environment]::GetEnvironmentVariable($k)) { [Environment]::SetEnvironmentVariable($k, $v) }
+  }
+}
+Import-DotEnv (Join-Path $PSScriptRoot "..\.env")
+
+if (-not $PSBoundParameters.ContainsKey('ResourceGroup'))        { $ResourceGroup   = if ($env:RESOURCE_GROUP) { $env:RESOURCE_GROUP } else { "rg-search-ingest-crawler" } }
+if (-not $PSBoundParameters.ContainsKey('Location'))             { $Location        = if ($env:LOCATION) { $env:LOCATION } else { "uaenorth" } }
+if (-not $PSBoundParameters.ContainsKey('StorageAccount'))       { $StorageAccount  = $env:STORAGE_ACCOUNT }
+if (-not $PSBoundParameters.ContainsKey('SitemapUrls'))          { $SitemapUrls     = $env:CRAWL_SITEMAP_URLS }
+if (-not $PSBoundParameters.ContainsKey('AllowedDomains'))       { $AllowedDomains  = $env:CRAWL_ALLOWED_DOMAINS }
+if (-not $PSBoundParameters.ContainsKey('AssetHosts'))           { $AssetHosts      = $env:CRAWL_ASSET_HOSTS }
+if (-not $PSBoundParameters.ContainsKey('Acr'))                  { $Acr             = if ($env:ACR_NAME) { $env:ACR_NAME } else { "searchingestcrawleracr" } }
+if (-not $PSBoundParameters.ContainsKey('Environment'))          { $Environment     = if ($env:ACA_ENVIRONMENT) { $env:ACA_ENVIRONMENT } else { "search-ingest-crawler-env" } }
+if (-not $PSBoundParameters.ContainsKey('Identity'))             { $Identity        = if ($env:ACA_IDENTITY) { $env:ACA_IDENTITY } else { "id-search-ingest-crawler" } }
+if (-not $PSBoundParameters.ContainsKey('JobName'))              { $JobName         = if ($env:ACA_JOB_NAME) { $env:ACA_JOB_NAME } else { "search-ingest-crawler-job" } }
+if (-not $PSBoundParameters.ContainsKey('ImageTag'))             { $ImageTag        = $env:IMAGE_TAG }
+if (-not $PSBoundParameters.ContainsKey('Cron'))                 { $Cron            = if ($env:CRON) { $env:CRON } else { "0 2 * * *" } }
+if (-not $PSBoundParameters.ContainsKey('ReplicaTimeout'))       { $ReplicaTimeout  = if ($env:REPLICA_TIMEOUT) { [int]$env:REPLICA_TIMEOUT } else { 43200 } }
+if (-not $PSBoundParameters.ContainsKey('ReplicaRetry'))         { $ReplicaRetry    = if ($env:REPLICA_RETRY) { [int]$env:REPLICA_RETRY } else { 1 } }
+if (-not $PSBoundParameters.ContainsKey('SnapshotRetentionDays')){ $SnapshotRetentionDays = if ($env:SNAPSHOT_RETENTION_DAYS) { [int]$env:SNAPSHOT_RETENTION_DAYS } else { 30 } }
+
+if (-not $StorageAccount) { throw "StorageAccount is required: pass -StorageAccount or set STORAGE_ACCOUNT in .env." }
+if (-not $SitemapUrls)    { throw "SitemapUrls is required: pass -SitemapUrls or set CRAWL_SITEMAP_URLS in .env." }
+
 # Force UTF-8 so `az acr build` log streaming doesn't crash on non-ASCII (cp1252) consoles.
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"

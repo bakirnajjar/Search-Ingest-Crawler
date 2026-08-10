@@ -88,6 +88,10 @@ az extension add --name containerapp   # if not already installed
   -ResourceGroup "rg-search-ingest-crawler" -Location "uaenorth"
 ```
 
+Every parameter above can instead be set in [`.env`](.env.example) (see the
+_Deployment_ section). With `.env` populated, run `./infra/deploy.ps1` with no
+arguments; any CLI argument you pass overrides the matching `.env` value.
+
 The script builds the image in ACR, creates a user-assigned Managed Identity,
 grants it **Storage Blob Data Contributor** + **AcrPull**, applies a storage
 **lifecycle policy** (snapshots expire after `-SnapshotRetentionDays`, default 30),
@@ -116,6 +120,12 @@ All settings are environment variables (see [`.env.example`](.env.example)):
 `STORAGE_ACCOUNT_URL`, `AZURE_CLIENT_ID`, `BLOB_CONTAINER_*`,
 `CAPTURE_SNAPSHOTS`, `SNAPSHOT_PDF`, `INCREMENTAL`, `HARVEST_RENDERED_IMAGES`,
 `CRAWLER_CONCURRENCY`, `CRAWLER_DOWNLOAD_DELAY`, `LOG_LEVEL`.
+
+Deployment parameters for the ACA Job (`infra/deploy.ps1`) and the AI Search
+indexer (`indexer/deploy.ps1`) can also live in `.env` — `RESOURCE_GROUP`,
+`LOCATION`, `STORAGE_ACCOUNT`, `ACR_NAME`, `ACA_*`, `CRON`, `REPLICA_*`,
+`SNAPSHOT_RETENTION_DAYS`, `SEARCH_SERVICE`, `FOUNDRY_ACCOUNT`, `EMBED_*`,
+`INDEX_NAME`, `SKILLSET_NAME`, `SEARCH_API_VERSION`.
 
 ## License
 

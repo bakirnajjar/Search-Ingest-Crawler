@@ -49,6 +49,11 @@ cd indexer
   -Foundry        "<aoai-or-foundry-account>"
 ```
 
+All parameters can instead be set in the repo-root [`.env`](../.env.example)
+(`RESOURCE_GROUP`, `SEARCH_SERVICE`, `STORAGE_ACCOUNT`, `FOUNDRY_ACCOUNT`, and the
+optional `EMBED_*` / `INDEX_NAME` / `SKILLSET_NAME` / `SEARCH_API_VERSION`). With
+`.env` populated, run `./deploy.ps1` with no arguments; CLI args override `.env`.
+
 Optional overrides: `-IndexName my-index -SkillsetName my-skillset -EmbedDeployment my-embed -EmbedModel my-model -Dimensions 1536`.
 
 ## Verify

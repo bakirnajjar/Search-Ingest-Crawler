@@ -19,24 +19,56 @@
 #>
 
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$ResourceGroup,                          # resource group holding Search/Storage/Foundry
-  [Parameter(Mandatory = $true)]
-  [string]$SearchService,                          # existing Azure AI Search service name
-  [Parameter(Mandatory = $true)]
-  [string]$StorageAccount,                         # existing storage account with the crawler's containers
-  [Parameter(Mandatory = $true)]
-  [string]$Foundry,                                # existing Azure OpenAI / Foundry (AIServices) account
-  [string]$EmbedDeployment  = "text-embedding-3-large",
-  [string]$EmbedModel       = "text-embedding-3-large",
-  [int]   $Dimensions       = 3072,
-  [string]$IndexName        = "content-index",
-  [string]$SkillsetName     = "content-skillset",
-  [string]$ApiVersion       = "2024-11-01-Preview"
+  [string]$ResourceGroup,          # RESOURCE_GROUP  (holds Search/Storage/Foundry)
+  [string]$SearchService,          # SEARCH_SERVICE  (existing Azure AI Search service)
+  [string]$StorageAccount,         # STORAGE_ACCOUNT (storage account with the crawler's containers)
+  [string]$Foundry,                # FOUNDRY_ACCOUNT (Azure OpenAI / Foundry AIServices account)
+  [string]$EmbedDeployment,        # EMBED_DEPLOYMENT
+  [string]$EmbedModel,             # EMBED_MODEL
+  [int]   $Dimensions,             # EMBED_DIMENSIONS
+  [string]$IndexName,              # INDEX_NAME
+  [string]$SkillsetName,           # SKILLSET_NAME
+  [string]$ApiVersion              # SEARCH_API_VERSION
 )
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Parameters may be supplied on the CLI or via the repo-root .env.
+# Precedence: explicit CLI arg > existing shell env var > .env value > built-in default.
+function Import-DotEnv([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  foreach ($line in Get-Content -LiteralPath $path) {
+    $t = $line.Trim()
+    if (-not $t -or $t.StartsWith("#")) { continue }
+    $i = $t.IndexOf("=")
+    if ($i -lt 1) { continue }
+    $k = $t.Substring(0, $i).Trim()
+    $v = $t.Substring($i + 1).Trim()
+    if (-not [Environment]::GetEnvironmentVariable($k)) { [Environment]::SetEnvironmentVariable($k, $v) }
+  }
+}
+Import-DotEnv (Join-Path $here "..\.env")
+
+if (-not $PSBoundParameters.ContainsKey('ResourceGroup'))   { $ResourceGroup   = $env:RESOURCE_GROUP }
+if (-not $PSBoundParameters.ContainsKey('SearchService'))   { $SearchService   = $env:SEARCH_SERVICE }
+if (-not $PSBoundParameters.ContainsKey('StorageAccount'))  { $StorageAccount  = $env:STORAGE_ACCOUNT }
+if (-not $PSBoundParameters.ContainsKey('Foundry'))         { $Foundry         = $env:FOUNDRY_ACCOUNT }
+if (-not $PSBoundParameters.ContainsKey('EmbedDeployment')) { $EmbedDeployment = if ($env:EMBED_DEPLOYMENT) { $env:EMBED_DEPLOYMENT } else { "text-embedding-3-large" } }
+if (-not $PSBoundParameters.ContainsKey('EmbedModel'))      { $EmbedModel      = if ($env:EMBED_MODEL) { $env:EMBED_MODEL } else { "text-embedding-3-large" } }
+if (-not $PSBoundParameters.ContainsKey('Dimensions'))      { $Dimensions      = if ($env:EMBED_DIMENSIONS) { [int]$env:EMBED_DIMENSIONS } else { 3072 } }
+if (-not $PSBoundParameters.ContainsKey('IndexName'))       { $IndexName       = if ($env:INDEX_NAME) { $env:INDEX_NAME } else { "content-index" } }
+if (-not $PSBoundParameters.ContainsKey('SkillsetName'))    { $SkillsetName    = if ($env:SKILLSET_NAME) { $env:SKILLSET_NAME } else { "content-skillset" } }
+if (-not $PSBoundParameters.ContainsKey('ApiVersion'))      { $ApiVersion      = if ($env:SEARCH_API_VERSION) { $env:SEARCH_API_VERSION } else { "2024-11-01-Preview" } }
+
+foreach ($req in @(
+    @{ n = "ResourceGroup";  v = $ResourceGroup;  e = "RESOURCE_GROUP"  },
+    @{ n = "SearchService";  v = $SearchService;  e = "SEARCH_SERVICE"  },
+    @{ n = "StorageAccount"; v = $StorageAccount; e = "STORAGE_ACCOUNT" },
+    @{ n = "Foundry";        v = $Foundry;        e = "FOUNDRY_ACCOUNT" }
+)) {
+  if (-not $req.v) { throw "$($req.n) is required: pass -$($req.n) or set $($req.e) in .env." }
+}
 
 # Per-container indexer config: extension filter + whether to extract images for OCR.
 $sources = @(

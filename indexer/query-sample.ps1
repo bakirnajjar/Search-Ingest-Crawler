@@ -5,15 +5,40 @@
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Query,
-  [Parameter(Mandatory = $true)][string]$ResourceGroup,
-  [Parameter(Mandatory = $true)][string]$SearchService,
-  [string]$IndexName     = "content-index",
-  [string]$ApiVersion    = "2024-07-01",
-  [int]   $Top           = 5,
-  [string]$Language      = ""   # optional filter: en | ar
+  [string]$ResourceGroup,          # RESOURCE_GROUP
+  [string]$SearchService,          # SEARCH_SERVICE
+  [string]$IndexName,              # INDEX_NAME
+  [string]$ApiVersion,             # query API version
+  [int]   $Top,
+  [string]$Language                # optional filter: en | ar
 )
 
 $ErrorActionPreference = "Stop"
+
+# ResourceGroup/SearchService/IndexName may be supplied on the CLI or via the repo-root .env.
+function Import-DotEnv([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  foreach ($line in Get-Content -LiteralPath $path) {
+    $t = $line.Trim()
+    if (-not $t -or $t.StartsWith("#")) { continue }
+    $i = $t.IndexOf("=")
+    if ($i -lt 1) { continue }
+    $k = $t.Substring(0, $i).Trim()
+    $v = $t.Substring($i + 1).Trim()
+    if (-not [Environment]::GetEnvironmentVariable($k)) { [Environment]::SetEnvironmentVariable($k, $v) }
+  }
+}
+Import-DotEnv (Join-Path $PSScriptRoot "..\.env")
+
+if (-not $PSBoundParameters.ContainsKey('ResourceGroup')) { $ResourceGroup = $env:RESOURCE_GROUP }
+if (-not $PSBoundParameters.ContainsKey('SearchService')) { $SearchService = $env:SEARCH_SERVICE }
+if (-not $PSBoundParameters.ContainsKey('IndexName'))     { $IndexName     = if ($env:INDEX_NAME) { $env:INDEX_NAME } else { "content-index" } }
+if (-not $PSBoundParameters.ContainsKey('ApiVersion'))    { $ApiVersion    = "2024-07-01" }
+if (-not $PSBoundParameters.ContainsKey('Top'))           { $Top           = 5 }
+if (-not $PSBoundParameters.ContainsKey('Language'))      { $Language      = "" }
+if (-not $ResourceGroup) { throw "ResourceGroup is required: pass -ResourceGroup or set RESOURCE_GROUP in .env." }
+if (-not $SearchService) { throw "SearchService is required: pass -SearchService or set SEARCH_SERVICE in .env." }
+
 $adminKey = az search admin-key show --service-name $SearchService --resource-group $ResourceGroup --query primaryKey -o tsv
 $uri = "https://$SearchService.search.windows.net/indexes/$IndexName/docs/search?api-version=$ApiVersion"
 
