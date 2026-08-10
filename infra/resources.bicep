@@ -7,8 +7,7 @@ param crawlSitemapUrls string
 param crawlAllowedDomains string
 param crawlAssetHosts string
 
-@description('Initial Job image; replaced by the postprovision hook after the real image is built.')
-param containerImage string = 'mcr.microsoft.com/k8se/quickstart-jobs:latest'
+var crawlerImage = '${acr.properties.loginServer}/search-ingest-crawler:latest'
 
 param cron string
 param replicaTimeout int
@@ -153,7 +152,7 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
       containers: [
         {
           name: 'crawler'
-          image: containerImage
+          image: crawlerImage
           resources: {
             cpu: json('2.0')
             memory: '4Gi'

@@ -1,8 +1,9 @@
 #!/usr/bin/env pwsh
 # azd postprovision hook:
-#   1. Build the crawler image in ACR.
-#   2. Point the Container Apps Job at the freshly built image.
-#   3. Configure the Azure AI Search index/skillset/data sources/indexers.
+#   1. Build/refresh the crawler image (stable :latest tag) in ACR.
+#   2. Configure the Azure AI Search index/skillset/data sources/indexers.
+# The Container Apps Job references <acr>/search-ingest-crawler:latest directly in Bicep,
+# so no job-image update is needed and re-provisioning never resets it to a placeholder.
 # Reads Bicep outputs exposed by azd as environment variables.
 $ErrorActionPreference = "Stop"
 $env:PYTHONUTF8 = "1"
@@ -14,17 +15,10 @@ $acrServer = $env:AZURE_CONTAINER_REGISTRY_ENDPOINT
 $rg        = $env:AZURE_RESOURCE_GROUP
 $jobName   = $env:CRAWLER_JOB_NAME
 $dims      = if ($env:EMBED_DIMENSIONS) { [int]$env:EMBED_DIMENSIONS } else { 3072 }
-$tag       = Get-Date -Format "yyyyMMddHHmmss"
-$image     = "$acrServer/search-ingest-crawler:$tag"
-
-# Ensure the containerapp extension is present (non-interactive hook must not prompt).
-az extension add --name containerapp --only-show-errors 2>&1 | Out-Null
+$image     = "$acrServer/search-ingest-crawler:latest"
 
 Write-Host "==> Building crawler image '$image' in ACR '$acrName'"
-az acr build --registry $acrName --image "search-ingest-crawler:$tag" --file Dockerfile . --output none
-
-Write-Host "==> Pointing job '$jobName' at $image"
-az containerapp job update --name $jobName --resource-group $rg --image $image --output none
+az acr build --registry $acrName --image "search-ingest-crawler:latest" --file Dockerfile . --output none
 
 Write-Host "==> Configuring Azure AI Search (index + skillset + indexers)"
 & (Join-Path $here "..\..\indexer\deploy.ps1") `
