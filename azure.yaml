@@ -3,10 +3,18 @@ name: search-ingest-crawler
 metadata:
   template: search-ingest-crawler@1.0.0
 
-# This project deploys a scheduled Container Apps *Job* (not a web service) plus an
-# Azure AI Search indexer. Neither is a native azd service host, so all resources are
-# provisioned by Bicep and the postprovision hook builds the image, points the Job at it,
-# and configures the Search index/skillset/indexers.
+# The search website runs as a Container App (native azd service). The crawler Job and
+# AI Search indexer are handled by the postprovision hook below (Jobs aren't azd services).
+services:
+  web:
+    project: ./web
+    language: docker
+    host: containerapp
+    docker:
+      path: Dockerfile
+      context: .
+      remoteBuild: true
+
 hooks:
   postprovision:
     windows:

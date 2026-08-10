@@ -55,6 +55,7 @@ module resources 'resources.bicep' = {
     cron: cron
     replicaTimeout: replicaTimeout
     snapshotRetentionDays: snapshotRetentionDays
+    indexName: indexName
   }
 }
 
@@ -75,3 +76,4 @@ output EMBED_MODEL string = embedModel
 output EMBED_DIMENSIONS int = embedDimensions
 output INDEX_NAME string = indexName
 output SKILLSET_NAME string = skillsetName
+output WEB_URI string = resources.outputs.webUri

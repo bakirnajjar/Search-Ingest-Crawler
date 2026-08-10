@@ -113,6 +113,28 @@ integrated vectorization via Azure OpenAI, and one search document per content c
 `azd up` runs this automatically via the `postprovision` hook; the folder also supports
 standalone use against existing resources. See [indexer/README.md](indexer/README.md).
 
+## Search website (Stage 3)
+
+The [`web/`](web/) folder is a **FastAPI + React** app (single container) that queries the
+index with hybrid + semantic + vector search: facet filters (language/section/kind),
+semantic answers/captions, source links, snapshot thumbnails, and RTL Arabic. It runs as a
+Container App and authenticates to Search via Managed Identity (Search Index Data Reader);
+`azd up` builds and deploys it, then prints the site URL (`WEB_URI`).
+
+```powershell
+# Local dev (two terminals):
+cd web/backend; Copy-Item ..\.env.example .env   # edit SEARCH_ENDPOINT + STORAGE_ACCOUNT_URL
+python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
+uvicorn app.main:app --reload            # http://localhost:8000
+cd ../frontend; npm install; npm run dev  # http://localhost:5173 (proxies /api)
+```
+
+After `azd up`, open the deployed site:
+
+```powershell
+azd env get-value WEB_URI
+```
+
 ## Configuration reference
 
 All settings are environment variables (see [`.env.example`](.env.example)):

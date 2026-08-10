@@ -17,6 +17,10 @@ param embedModel string
 param embedDeployment string
 param embedCapacity int
 param embedSku string
+param indexName string
+
+@description('Initial web image; replaced by azd deploy after the real image is built.')
+param webImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 var blobContainers = [ 'pages', 'images', 'docs', 'snapshots' ]
 
@@ -26,6 +30,7 @@ var roleStorageBlobDataReader = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 var roleAcrPull = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
 var roleOpenAIUser = '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
 var roleCognitiveServicesUser = 'a97b65f3-24c7-4388-baec-2e87135dc908'
+var roleSearchIndexDataReader = '1407120a-92aa-4202-b7e9-c0e197c71c8f'
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${resourceToken}'
@@ -265,6 +270,96 @@ resource raSearchCognitive 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
+// --- Search website (Container App) ---
+resource webIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'id-web-${resourceToken}'
+  location: location
+  tags: tags
+}
+
+resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'web-${resourceToken}'
+  location: location
+  tags: union(tags, { 'azd-service-name': 'web' })
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${webIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: acaEnv.id
+    configuration: {
+      activeRevisionsMode: 'Single'
+      ingress: {
+        external: true
+        targetPort: 8000
+        transport: 'auto'
+        allowInsecure: false
+      }
+      registries: [
+        {
+          server: acr.properties.loginServer
+          identity: webIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'web'
+          image: webImage
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            { name: 'SEARCH_ENDPOINT', value: 'https://${search.name}.search.windows.net' }
+            { name: 'SEARCH_INDEX_NAME', value: indexName }
+            { name: 'AZURE_CLIENT_ID', value: webIdentity.properties.clientId }
+            { name: 'STORAGE_ACCOUNT_URL', value: 'https://${storage.name}.blob.${environment().suffixes.storage}' }
+            { name: 'SNAPSHOTS_CONTAINER', value: 'snapshots' }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+      }
+    }
+  }
+}
+
+resource raWebAcr 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, webIdentity.id, roleAcrPull)
+  scope: acr
+  properties: {
+    principalId: webIdentity.properties.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAcrPull)
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource raWebSearch 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(search.id, webIdentity.id, roleSearchIndexDataReader)
+  scope: search
+  properties: {
+    principalId: webIdentity.properties.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleSearchIndexDataReader)
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource raWebStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storage.id, webIdentity.id, roleStorageBlobDataReader)
+  scope: storage
+  properties: {
+    principalId: webIdentity.properties.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleStorageBlobDataReader)
+    principalType: 'ServicePrincipal'
+  }
+}
+
 output registryLoginServer string = acr.properties.loginServer
 output registryName string = acr.name
 output jobName string = job.name
@@ -275,3 +370,4 @@ output searchServiceName string = search.name
 output searchEndpoint string = 'https://${search.name}.search.windows.net'
 output foundryName string = foundry.name
 output foundryEndpoint string = foundry.properties.endpoint
+output webUri string = 'https://${webApp.properties.configuration.ingress.fqdn}'
