@@ -5,9 +5,9 @@
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Query,
-  [string]$ResourceGroup = "RG-eand-Search",
-  [string]$SearchService = "eandsearchbanaj",
-  [string]$IndexName     = "eand-content",
+  [Parameter(Mandatory = $true)][string]$ResourceGroup,
+  [Parameter(Mandatory = $true)][string]$SearchService,
+  [string]$IndexName     = "content-index",
   [string]$ApiVersion    = "2024-07-01",
   [int]   $Top           = 5,
   [string]$Language      = ""   # optional filter: en | ar

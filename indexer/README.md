@@ -17,8 +17,9 @@ snapshots/* ──┘        4 indexers          + index projections
   (chunking) → Azure OpenAI embeddings, then **index projections** emit one search
   document per chunk. OCR is a no-op for the already-clean `pages/*.md`.
 - **Four indexers** (one per container) reuse the same skillset + index; they differ
-  only in file-extension filter and `imageAction` (`none` for pages, extract images
-  for the rest).
+  only in the file-extension filter. All use `imageAction=generateNormalizedImages`
+  so the shared OCR skill always has normalized images to read (for `pages/*.md`
+  there are none, so OCR is a no-op).
 - **Managed Identity** end-to-end — the Search service's system-assigned identity
   reads Blob (Storage Blob Data Reader) and calls the model / OCR
   (Cognitive Services OpenAI User + Cognitive Services User). No keys in the repo.
@@ -41,21 +42,25 @@ az login
 az account set --subscription "<subscription-id>"
 
 cd indexer
-./deploy.ps1     # uses RG-eand-Search / eandsearchbanaj / banaj-eand-foundry / banajeandstr by default
+./deploy.ps1 `
+  -ResourceGroup  "<resource-group>" `
+  -SearchService  "<search-service>" `
+  -StorageAccount "<storage-account>" `
+  -Foundry        "<aoai-or-foundry-account>"
 ```
 
-Override any resource via parameters, e.g. `-IndexName my-index -EmbedDeployment my-embed`.
+Optional overrides: `-IndexName my-index -SkillsetName my-skillset -EmbedDeployment my-embed -EmbedModel my-model -Dimensions 1536`.
 
 ## Verify
 
 ```powershell
 # Indexer status (repeat per indexer: ix-pages, ix-docs, ix-images, ix-snapshots)
-$key = az search admin-key show --service-name eandsearchbanaj --resource-group RG-eand-Search --query primaryKey -o tsv
-Invoke-RestMethod -Uri "https://eandsearchbanaj.search.windows.net/indexers/ix-pages/status?api-version=2024-07-01" -Headers @{ "api-key"=$key } | Select -Expand lastResult
+$key = az search admin-key show --service-name <search-service> --resource-group <resource-group> --query primaryKey -o tsv
+Invoke-RestMethod -Uri "https://<search-service>.search.windows.net/indexers/ix-pages/status?api-version=2024-07-01" -Headers @{ "api-key"=$key } | Select -Expand lastResult
 
 # Query
-./query-sample.ps1 -Query "how do I upgrade my plan" -Top 5
-./query-sample.ps1 -Query "الترقية" -Language ar
+./query-sample.ps1 -Query "how do I upgrade my plan" -ResourceGroup "<resource-group>" -SearchService "<search-service>" -Top 5
+./query-sample.ps1 -Query "الترقية" -ResourceGroup "<resource-group>" -SearchService "<search-service>" -Language ar
 ```
 
 ## Index fields
@@ -68,5 +73,6 @@ Invoke-RestMethod -Uri "https://eandsearchbanaj.search.windows.net/indexers/ix-p
 - **Prerequisite**: the crawler must have populated the Blob containers first.
 - **Cost drivers**: image extraction (metered by AI Search), OCR/embeddings (Foundry).
   The enrichment cache and the crawler's content-hash change detection limit reprocessing.
-- **Re-run** on a schedule by adding a `schedule` block to the indexers, or trigger
-  `POST /indexers/<name>/run` after each crawl.
+- **Scheduled daily**: every indexer carries a `schedule` (interval `P1D`, 04:00 UTC)
+  and picks up new/changed blobs incrementally. Trigger an out-of-band refresh any
+  time with `POST /indexers/<name>/run`.

@@ -1,4 +1,4 @@
-"""Scrapy item definitions for crawled e& content."""
+"""Scrapy item definitions for crawled site content."""
 import scrapy
 
 

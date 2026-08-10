@@ -19,15 +19,19 @@
 #>
 
 param(
-  [string]$ResourceGroup    = "RG-eand-Search",
-  [string]$SearchService    = "eandsearchbanaj",
-  [string]$StorageAccount   = "banajeandstr",
-  [string]$Foundry          = "banaj-eand-foundry",
+  [Parameter(Mandatory = $true)]
+  [string]$ResourceGroup,                          # resource group holding Search/Storage/Foundry
+  [Parameter(Mandatory = $true)]
+  [string]$SearchService,                          # existing Azure AI Search service name
+  [Parameter(Mandatory = $true)]
+  [string]$StorageAccount,                         # existing storage account with the crawler's containers
+  [Parameter(Mandatory = $true)]
+  [string]$Foundry,                                # existing Azure OpenAI / Foundry (AIServices) account
   [string]$EmbedDeployment  = "text-embedding-3-large",
   [string]$EmbedModel       = "text-embedding-3-large",
   [int]   $Dimensions       = 3072,
-  [string]$IndexName        = "eand-content",
-  [string]$SkillsetName     = "eand-skillset",
+  [string]$IndexName        = "content-index",
+  [string]$SkillsetName     = "content-skillset",
   [string]$ApiVersion       = "2024-11-01-Preview"
 )
 

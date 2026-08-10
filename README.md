@@ -101,6 +101,14 @@ az containerapp job start --name search-ingest-crawler-job --resource-group rg-s
 az containerapp job execution list --name search-ingest-crawler-job --resource-group rg-search-ingest-crawler -o table
 ```
 
+## Index into Azure AI Search (optional Stage 2)
+
+The [`indexer/`](indexer/) folder turns the four Blob containers into a single
+**hybrid + semantic + vector** Azure AI Search index — OCR for images/PDFs/snapshots,
+integrated vectorization via Azure OpenAI, and one search document per content chunk.
+It reuses existing Search + Foundry + Storage resources and authenticates entirely
+via Managed Identity. See [indexer/README.md](indexer/README.md).
+
 ## Configuration reference
 
 All settings are environment variables (see [`.env.example`](.env.example)):
