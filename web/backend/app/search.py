@@ -36,6 +36,20 @@ def _build_filter(filters: dict) -> str | None:
     return " and ".join(clauses) if clauses else None
 
 
+@lru_cache(maxsize=1)
+def facet_values() -> dict:
+    """Distinct values for each filterable field (for LLM grounding/validation)."""
+    results = _client().search(
+        search_text="*",
+        facets=[f"{f},count:100" for f in _ALLOWED_FILTERS],
+        top=0,
+    )
+    out = {f: [] for f in _ALLOWED_FILTERS}
+    for name, values in (results.get_facets() or {}).items():
+        out[name] = [v["value"] for v in values if v.get("value")]
+    return out
+
+
 def search(query: str, filters: dict, top: int = 10, skip: int = 0) -> dict:
     query = (query or "").strip()
     client = _client()

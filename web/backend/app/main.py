@@ -36,6 +36,20 @@ def api_search(
     return search_svc.search(q, filters, top=top, skip=skip)
 
 
+@app.get("/api/search/smart")
+async def api_search_smart(
+    q: str = Query("", max_length=1000),
+    top: int = Query(20, ge=1, le=50),
+    skip: int = Query(0, ge=0, le=1000),
+):
+    facets = await run_in_threadpool(search_svc.facet_values)
+    interp = await chat_svc.extract_query(q, facets)
+    results = await run_in_threadpool(
+        search_svc.search, interp["keywords"], interp["filters"], top, skip
+    )
+    return {"interpreted": interp, **results}
+
+
 @app.get("/api/thumbnail")
 def api_thumbnail(url: str = Query(..., max_length=2000)):
     data = blobs.get_snapshot_png(url)

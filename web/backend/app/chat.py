@@ -126,3 +126,56 @@ async def suggest_followups(messages: list[dict], answer: str) -> list[str]:
         return [q for q in (data.get("followups") or []) if isinstance(q, str) and q.strip()][:3]
     except Exception:
         return []
+
+
+async def extract_query(text: str, facets: dict) -> dict:
+    """Parse a natural-language query into keyword text + validated facet filters."""
+    text = (text or "").strip()
+    empty = {"keywords": text, "filters": {}, "notes": ""}
+    if not text:
+        return empty
+    # "unknown" etc. are index sentinels, not user-selectable filter values.
+    sentinels = {"unknown", "none", "n/a", "null", ""}
+    allowed = {
+        f: [v for v in ((facets or {}).get(f) or []) if v.lower() not in sentinels]
+        for f in ("language", "kind", "section")
+    }
+    prompt = (
+        "You convert a user's search request into a keyword query plus optional filters "
+        "for a website search index. Return JSON: "
+        '{"keywords": "...", "filters": {"language": "", "kind": "", "section": ""}, "notes": "..."}.\n'
+        "Rules: keywords = the core topic words only, with any filter words removed; keep "
+        "the user's language. Only set a filter when the request clearly implies it, "
+        "otherwise leave it as an empty string (never guess, never use 'unknown'). "
+        "Only use a value from the allowed lists below. "
+        "Map words like pdf/document->doc, picture/photo->image, screenshot->snapshot, "
+        "webpage->page, arabic->ar, english->en. notes = one short sentence describing "
+        "how you interpreted the request, in the user's language.\n"
+        f"allowed.language = {allowed['language']}\n"
+        f"allowed.kind = {allowed['kind']}\n"
+        f"allowed.section = {allowed['section']}\n\n"
+        f"Request: {text}"
+    )
+    try:
+        resp = await _client().chat.completions.create(
+            model=config.PLANNER_DEPLOYMENT,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content or "{}")
+    except Exception:
+        return empty
+
+    raw = data.get("filters") if isinstance(data.get("filters"), dict) else {}
+    filters: dict = {}
+    for field in ("language", "kind", "section"):
+        value = raw.get(field)
+        if not isinstance(value, str) or value.strip().lower() in sentinels:
+            continue
+        match = next((v for v in allowed[field] if v.lower() == value.strip().lower()), None)
+        if match:
+            filters[field] = match
+    keywords = data.get("keywords")
+    keywords = keywords.strip() if isinstance(keywords, str) and keywords.strip() else text
+    notes = data.get("notes") if isinstance(data.get("notes"), str) else ""
+    return {"keywords": keywords, "filters": filters, "notes": notes.strip()}

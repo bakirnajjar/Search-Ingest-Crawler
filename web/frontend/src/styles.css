@@ -164,6 +164,45 @@ body {
 }
 .topnav .tabs button.active { background: var(--accent); color: #082f49; border-color: transparent; font-weight: 600; }
 
+/* --- Smart Search interpreted banner --- */
+.interpreted {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  background: var(--panel-2);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.interpreted-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.interpreted-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  min-width: 4.5rem;
+}
+.interpreted-keywords { font-weight: 600; }
+.interpreted-notes { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); }
+.chip-x { color: var(--muted); font-size: 0.75em; }
+.chip:hover .chip-x { color: var(--accent); }
+
 /* --- Chat --- */
 .chat-app { display: flex; flex-direction: column; min-height: calc(100vh - 120px); }
 .chat-list { flex: 1; display: flex; flex-direction: column; gap: 0.9rem; overflow-y: auto; padding-bottom: 1rem; }

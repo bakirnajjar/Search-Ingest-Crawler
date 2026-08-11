@@ -17,6 +17,14 @@ export function thumbnailUrl(sourceUrl) {
   return `/api/thumbnail?url=${encodeURIComponent(sourceUrl)}`
 }
 
+// GET /api/search/smart — LLM extracts keywords + filters, then runs the search.
+export async function smartSearch({ q, top = 20, skip = 0 }) {
+  const qs = new URLSearchParams({ q, top: String(top), skip: String(skip) })
+  const res = await fetch(`/api/search/smart?${qs.toString()}`)
+  if (!res.ok) throw new Error(`Smart search failed (${res.status})`)
+  return res.json()
+}
+
 // POST /api/chat and parse the Server-Sent Events stream.
 export async function streamChat(messages, { onSources, onToken, onDone, onError, signal } = {}) {
   const res = await fetch('/api/chat', {

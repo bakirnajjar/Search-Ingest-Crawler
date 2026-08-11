@@ -16,6 +16,7 @@ WORKDIR /app
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+ARG CACHEBUST=0
 COPY backend/ ./
 COPY --from=frontend /app/frontend/dist ./app/static
 
