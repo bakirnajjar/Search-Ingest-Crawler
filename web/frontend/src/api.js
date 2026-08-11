@@ -16,3 +16,39 @@ export async function search({ q, filters, top = 20, skip = 0 }) {
 export function thumbnailUrl(sourceUrl) {
   return `/api/thumbnail?url=${encodeURIComponent(sourceUrl)}`
 }
+
+// POST /api/chat and parse the Server-Sent Events stream.
+export async function streamChat(messages, { onSources, onToken, onDone, onError, signal } = {}) {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages }),
+    signal,
+  })
+  if (!res.ok || !res.body) throw new Error(`Chat failed (${res.status})`)
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const blocks = buffer.split('\n\n')
+    buffer = blocks.pop() ?? ''
+    for (const block of blocks) {
+      let event = 'message'
+      let data = ''
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) data += line.slice(5).trim()
+      }
+      if (!data) continue
+      let parsed
+      try { parsed = JSON.parse(data) } catch { continue }
+      if (event === 'sources') onSources?.(parsed.sources || [])
+      else if (event === 'token') onToken?.(parsed.t || '')
+      else if (event === 'done') onDone?.(parsed)
+      else if (event === 'error') onError?.(parsed.message || 'error')
+    }
+  }
+}

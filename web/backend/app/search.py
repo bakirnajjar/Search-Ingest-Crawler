@@ -98,3 +98,35 @@ def search(query: str, filters: dict, top: int = 10, skip: int = 0) -> dict:
             best[key] = doc
 
     return {"answers": answers, "facets": facets, "results": [best[k] for k in order]}
+
+
+_RAG_SELECT = ["id", "parent_id", "title", "sourceUrl", "language", "section", "kind", "chunk"]
+
+
+def retrieve(query: str, top: int = 8, filters: dict | None = None) -> list[dict]:
+    """Return full chunks for RAG grounding (hybrid + semantic + vector)."""
+    query = (query or "").strip()
+    if not query:
+        return []
+    results = _client().search(
+        search_text=query,
+        vector_queries=[VectorizableTextQuery(text=query, k_nearest_neighbors=top * 4, fields=config.VECTOR_FIELD)],
+        query_type="semantic",
+        semantic_configuration_name=config.SEMANTIC_CONFIG,
+        filter=_build_filter(filters),
+        select=_RAG_SELECT,
+        top=top,
+    )
+    return [
+        {
+            "id": r.get("id"),
+            "parentId": r.get("parent_id"),
+            "title": unquote(r.get("title") or "") or "(untitled)",
+            "sourceUrl": unquote(r.get("sourceUrl") or ""),
+            "language": r.get("language"),
+            "kind": r.get("kind"),
+            "chunk": r.get("chunk") or "",
+            "reranker": r.get("@search.reranker_score"),
+        }
+        for r in results
+    ]

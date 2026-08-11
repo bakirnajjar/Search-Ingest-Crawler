@@ -23,6 +23,17 @@ param embedDeployment string = 'text-embedding-3-large'
 param embedDimensions int = 3072
 param embedCapacity int = 1000
 param embedSku string = 'GlobalStandard'
+
+param chatModel string = 'gpt-5.5'
+param chatDeployment string = 'gpt-5.5'
+param chatVersion string = '2026-04-24'
+param chatCapacity int = 50
+param plannerModel string = 'gpt-5.4-mini'
+param plannerDeployment string = 'gpt-5.4-mini'
+param plannerVersion string = '2026-03-17'
+param plannerCapacity int = 50
+param openAiApiVersion string = '2025-04-01-preview'
+
 param cron string = '0 2 * * *'
 param replicaTimeout int = 43200
 param snapshotRetentionDays int = 30
@@ -52,6 +63,15 @@ module resources 'resources.bicep' = {
     embedDeployment: embedDeployment
     embedCapacity: embedCapacity
     embedSku: embedSku
+    chatModel: chatModel
+    chatDeployment: chatDeployment
+    chatVersion: chatVersion
+    chatCapacity: chatCapacity
+    plannerModel: plannerModel
+    plannerDeployment: plannerDeployment
+    plannerVersion: plannerVersion
+    plannerCapacity: plannerCapacity
+    openAiApiVersion: openAiApiVersion
     cron: cron
     replicaTimeout: replicaTimeout
     snapshotRetentionDays: snapshotRetentionDays
@@ -71,6 +91,9 @@ output SEARCH_SERVICE_NAME string = resources.outputs.searchServiceName
 output SEARCH_ENDPOINT string = resources.outputs.searchEndpoint
 output FOUNDRY_NAME string = resources.outputs.foundryName
 output FOUNDRY_ENDPOINT string = resources.outputs.foundryEndpoint
+output CHAT_DEPLOYMENT string = resources.outputs.chatDeploymentName
+output PLANNER_DEPLOYMENT string = resources.outputs.plannerDeploymentName
+output OPENAI_API_VERSION string = openAiApiVersion
 output EMBED_DEPLOYMENT string = embedDeployment
 output EMBED_MODEL string = embedModel
 output EMBED_DIMENSIONS int = embedDimensions

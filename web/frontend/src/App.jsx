@@ -1,10 +1,27 @@
 import { useState } from 'react'
 import { search, thumbnailUrl } from './api'
+import Chat from './Chat'
 
 const FILTER_FIELDS = ['language', 'section', 'kind']
 const isArabic = (s) => /[\u0600-\u06FF]/.test(s || '')
 
 export default function App() {
+  const [mode, setMode] = useState('search')
+  return (
+    <>
+      <nav className="topnav">
+        <span className="brand">Site Search</span>
+        <div className="tabs">
+          <button className={mode === 'search' ? 'active' : ''} onClick={() => setMode('search')}>Search</button>
+          <button className={mode === 'chat' ? 'active' : ''} onClick={() => setMode('chat')}>Ask AI</button>
+        </div>
+      </nav>
+      {mode === 'search' ? <SearchView /> : <Chat />}
+    </>
+  )
+}
+
+function SearchView() {
   const [q, setQ] = useState('')
   const [filters, setFilters] = useState({ language: '', section: '', kind: '' })
   const [data, setData] = useState(null)

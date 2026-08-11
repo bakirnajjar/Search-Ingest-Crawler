@@ -16,6 +16,15 @@ param embedModel string
 param embedDeployment string
 param embedCapacity int
 param embedSku string
+param chatModel string
+param chatDeployment string
+param chatVersion string
+param chatCapacity int
+param plannerModel string
+param plannerDeployment string
+param plannerVersion string
+param plannerCapacity int
+param openAiApiVersion string
 param indexName string
 
 @description('Initial web image; replaced by azd deploy after the real image is built.')
@@ -226,6 +235,42 @@ resource embed 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   }
 }
 
+// Chat (answer synthesis). dependsOn serializes deployment creation on the account.
+resource chat 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: foundry
+  name: chatDeployment
+  dependsOn: [ embed ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: chatCapacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: chatModel
+      version: chatVersion
+    }
+  }
+}
+
+// Planner (agentic query decomposition) — a small, cheap model.
+resource planner 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: foundry
+  name: plannerDeployment
+  dependsOn: [ chat ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: plannerCapacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: plannerModel
+      version: plannerVersion
+    }
+  }
+}
+
 resource raJobStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storage.id, uami.id, roleStorageBlobDataContributor)
   scope: storage
@@ -325,6 +370,10 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AZURE_CLIENT_ID', value: webIdentity.properties.clientId }
             { name: 'STORAGE_ACCOUNT_URL', value: 'https://${storage.name}.blob.${environment().suffixes.storage}' }
             { name: 'SNAPSHOTS_CONTAINER', value: 'snapshots' }
+            { name: 'FOUNDRY_ENDPOINT', value: foundry.properties.endpoint }
+            { name: 'CHAT_DEPLOYMENT', value: chatDeployment }
+            { name: 'PLANNER_DEPLOYMENT', value: plannerDeployment }
+            { name: 'OPENAI_API_VERSION', value: openAiApiVersion }
           ]
         }
       ]
@@ -366,6 +415,16 @@ resource raWebStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+resource raWebFoundry 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(foundry.id, webIdentity.id, roleOpenAIUser)
+  scope: foundry
+  properties: {
+    principalId: webIdentity.properties.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleOpenAIUser)
+    principalType: 'ServicePrincipal'
+  }
+}
+
 output registryLoginServer string = acr.properties.loginServer
 output registryName string = acr.name
 output jobName string = job.name
@@ -376,4 +435,6 @@ output searchServiceName string = search.name
 output searchEndpoint string = 'https://${search.name}.search.windows.net'
 output foundryName string = foundry.name
 output foundryEndpoint string = foundry.properties.endpoint
+output chatDeploymentName string = chatDeployment
+output plannerDeploymentName string = plannerDeployment
 output webUri string = 'https://${webApp.properties.configuration.ingress.fqdn}'
